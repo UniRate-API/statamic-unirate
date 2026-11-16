@@ -245,4 +245,120 @@ final class UniRateClientTest extends TestCase
 
         $this->client()->getRate('USD');
     }
+
+    // ---------------------------------------------------------------
+    // Connection failures
+    // ---------------------------------------------------------------
+
+    public function test_timeout_throws_unirate_exception_without_url_or_key(): void
+    {
+        $this->fakeTimeout();
+
+        try {
+            $this->client()->getRate('USD', 'EUR');
+            $this->fail('Expected UniRateException');
+        } catch (UniRateException $e) {
+            $this->assertStringContainsString('Could not reach the UniRate API', $e->getMessage());
+            $this->assertStringNotContainsString('test-key', $e->getMessage());
+            $this->assertStringNotContainsString('api_key', $e->getMessage());
+            $this->assertStringNotContainsString('api.unirateapi.com', $e->getMessage());
+            $this->assertNull($e->getPrevious(), 'underlying exception (contains the URL) must not be chained');
+        }
+    }
+
+    public function test_timeout_on_every_endpoint_throws_unirate_exception(): void
+    {
+        $this->fakeTimeout();
+
+        $calls = [
+            fn () => $this->client()->getRate('USD'),
+            fn () => $this->client()->convert('EUR', 1.0, 'USD'),
+            fn () => $this->client()->getSupportedCurrencies(),
+            fn () => $this->client()->getVatRates('DE'),
+            fn () => $this->client()->getHistoricalRate('2024-01-01', 1.0, 'USD', 'EUR'),
+        ];
+
+        foreach ($calls as $call) {
+            try {
+                $call();
+                $this->fail('Expected UniRateException');
+            } catch (UniRateException $e) {
+                $this->assertStringNotContainsString('test-key', $e->getMessage());
+            }
+        }
+    }
+
+    public function test_after_a_timeout_further_calls_fail_fast_without_requests(): void
+    {
+        $this->fakeTimeout();
+
+        foreach (range(1, 3) as $_) {
+            try {
+                $this->client()->getRate('USD', 'EUR');
+            } catch (UniRateException) {
+            }
+        }
+
+        Http::assertSentCount(1);
+    }
+
+    // ---------------------------------------------------------------
+    // Caching
+    // ---------------------------------------------------------------
+
+    private function enableCache(int $ttl = 60): void
+    {
+        config(['unirate.cache_ttl' => $ttl]);
+        app()->forgetInstance(UniRateClient::class);
+    }
+
+    public function test_successful_responses_are_cached(): void
+    {
+        $this->enableCache();
+        Http::fake(['*/api/rates*' => Http::response(['rate' => '0.92'], 200)]);
+
+        $this->assertSame(0.92, $this->client()->getRate('USD', 'EUR'));
+        $this->assertSame(0.92, $this->client()->getRate('USD', 'EUR'));
+
+        Http::assertSentCount(1);
+    }
+
+    public function test_cache_is_keyed_per_query(): void
+    {
+        $this->enableCache();
+        Http::fake(['*/api/rates*' => Http::response(['rate' => '0.92'], 200)]);
+
+        $this->client()->getRate('USD', 'EUR');
+        $this->client()->getRate('USD', 'GBP');
+
+        Http::assertSentCount(2);
+    }
+
+    public function test_failures_are_not_cached(): void
+    {
+        $this->enableCache();
+        Http::fakeSequence('*/api/rates*')
+            ->push('Service Unavailable', 503)
+            ->push(['rate' => '0.92'], 200);
+
+        try {
+            $this->client()->getRate('USD', 'EUR');
+            $this->fail('Expected UniRateException');
+        } catch (UniRateException) {
+        }
+
+        $this->assertSame(0.92, $this->client()->getRate('USD', 'EUR'));
+        Http::assertSentCount(2);
+    }
+
+    public function test_cache_ttl_zero_disables_caching(): void
+    {
+        $this->enableCache(0);
+        Http::fake(['*/api/rates*' => Http::response(['rate' => '0.92'], 200)]);
+
+        $this->client()->getRate('USD', 'EUR');
+        $this->client()->getRate('USD', 'EUR');
+
+        Http::assertSentCount(2);
+    }
 }

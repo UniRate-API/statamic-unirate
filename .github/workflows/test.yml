@@ -6,24 +6,31 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   test:
+    name: PHP ${{ matrix.php-version }} / Statamic ${{ matrix.statamic }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         php-version: ["8.2", "8.3", "8.4"]
+        statamic: ["^5.0", "^6.0"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: shivammathur/setup-php@v2
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         with:
           php-version: ${{ matrix.php-version }}
           coverage: none
       - name: Validate composer.json
         run: composer validate --strict --no-check-publish
-      - name: Install dependencies
-        run: composer install --prefer-dist --no-progress
+      - name: Install dependencies (Statamic ${{ matrix.statamic }})
+        run: composer update --prefer-dist --no-progress --no-interaction --with "statamic/cms:${{ matrix.statamic }}" -W
+      - name: Show resolved versions
+        run: composer show | grep -E '^(statamic/cms|laravel/framework|orchestra/testbench|phpunit/phpunit) '
       - name: Security audit
-        run: composer audit
+        run: composer audit --no-dev
       - name: Run tests
         run: vendor/bin/phpunit --testsuite mock

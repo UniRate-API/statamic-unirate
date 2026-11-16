@@ -28,8 +28,25 @@ return [
     |--------------------------------------------------------------------------
     | HTTP timeout (seconds)
     |--------------------------------------------------------------------------
+    |
+    | Kept short so a slow API can't stall page renders. On timeout the tags
+    | fall back to empty output / {{ error }}.
+    |
     */
 
-    'timeout' => (int) env('UNIRATE_TIMEOUT', 10),
+    'timeout' => (int) env('UNIRATE_TIMEOUT', 5),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Cache TTL (seconds)
+    |--------------------------------------------------------------------------
+    |
+    | Successful API responses are cached in your default cache store for this
+    | many seconds, so tags don't hit the API on every page render. Set to 0
+    | to disable caching.
+    |
+    */
+
+    'cache_ttl' => (int) env('UNIRATE_CACHE_TTL', 600),
 
 ];

@@ -31,8 +31,10 @@ class ServiceProvider extends AddonServiceProvider
             return new UniRateClient(
                 apiKey: (string) ($config['api_key'] ?? ''),
                 baseUrl: (string) ($config['base_url'] ?? 'https://api.unirateapi.com'),
-                timeout: (int) ($config['timeout'] ?? 10),
+                timeout: (int) ($config['timeout'] ?? 5),
                 httpFactory: $app->make(HttpFactory::class),
+                cache: $app['cache']->store(),
+                cacheTtl: max(0, (int) ($config['cache_ttl'] ?? 0)),
             );
         });
 

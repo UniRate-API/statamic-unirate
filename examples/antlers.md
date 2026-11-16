@@ -3,19 +3,24 @@
 Drop these snippets into any Antlers template once the addon is installed and
 your API key is set (`UNIRATE_API_KEY` in `.env`).
 
+Single (non-pair) tags use the self-closing `/}}` form. Antlers pairs an opening
+tag with the next matching closing tag, so a plain `{{ unirate:rate ... }}`
+followed later by a `{{ unirate:rate }}...{{ /unirate:rate }}` pair would be
+mis-paired.
+
 ## Publish the config (optional)
 
 ```bash
 php artisan vendor:publish --tag=unirate-config
 ```
 
-This copies `config/unirate.php` into your app so you can tweak `base_url` and
-`timeout`. The API key is read from `UNIRATE_API_KEY` by default.
+This copies `config/unirate.php` into your app so you can tweak `base_url`,
+`timeout` and `cache_ttl`. The API key is read from `UNIRATE_API_KEY` by default.
 
 ## Single exchange rate
 
 ```antlers
-1 USD = {{ unirate:rate from="USD" to="EUR" }} EUR
+1 USD = {{ unirate:rate from="USD" to="EUR" /}} EUR
 ```
 
 ## Rate in a tag pair (exposes {{ rate }} and {{ error }})
@@ -43,7 +48,7 @@ This copies `config/unirate.php` into your app so you can tweak `base_url` and
 ## Convert an amount
 
 ```antlers
-$100 USD is €{{ unirate:convert from="USD" to="EUR" amount="100" }}
+$100 USD is €{{ unirate:convert from="USD" to="EUR" amount="100" /}}
 ```
 
 ## List supported currencies
@@ -55,7 +60,7 @@ $100 USD is €{{ unirate:convert from="USD" to="EUR" amount="100" }}
 Or as a single inline comma-separated list:
 
 ```antlers
-Supported: {{ unirate:currencies }}
+Supported: {{ unirate:currencies /}}
 ```
 
 ## VAT rate for a country
@@ -69,5 +74,5 @@ Supported: {{ unirate:currencies }}
 Or inline (renders just the numeric rate):
 
 ```antlers
-German VAT is {{ unirate:vat country="DE" }}%
+German VAT is {{ unirate:vat country="DE" /}}%
 ```
